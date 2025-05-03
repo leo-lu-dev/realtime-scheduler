@@ -15,6 +15,7 @@ dist-ssr
 
 __pycache__
 db.sqlite3
+static
 
 # Editor directories and files
 .vscode/*
