@@ -43,6 +43,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY . .
 
 RUN python manage.py collectstatic --noinput
+RUN chmod -R 755 /app/static
 
 # Switch to the non-privileged user to run the application.
 USER appuser
