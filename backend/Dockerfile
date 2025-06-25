@@ -45,6 +45,9 @@ COPY . .
 RUN python manage.py collectstatic --noinput
 RUN chmod -R 755 /app/static
 
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
 # Switch to the non-privileged user to run the application.
 USER appuser
 
@@ -52,4 +55,6 @@ USER appuser
 EXPOSE 8000
 
 # Run the application.
-CMD ["waitress-serve", "--port=8000", "backend.wsgi:application"]
+CMD ["/start.sh"]
+
+# CMD ["waitress-serve", "--port=8000", "backend.wsgi:application"]
