@@ -2,6 +2,7 @@ services:
   backend:
     build:
       context: ./backend
+      dockerfile: Dockerfile.backend
     container_name: backend
     volumes:
       - backend-static:/app/static
@@ -9,13 +10,14 @@ services:
       - .env
 
   nginx:
-    image: nginx:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
     container_name: nginx
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - backend-static:/app/static
       - ./frontend/dist:/usr/share/nginx/html
-      - /dev/null:/etc/nginx/conf.d/default.conf
     depends_on:
       - backend
 
