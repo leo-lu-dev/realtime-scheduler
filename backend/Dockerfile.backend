@@ -29,9 +29,6 @@ COPY . .
 RUN python manage.py collectstatic --noinput
 RUN chmod -R 755 /app/static
 
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
-
 USER appuser
 
 EXPOSE 8000
