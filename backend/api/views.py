@@ -1,11 +1,18 @@
-from rest_framework import viewsets, permissions
-from .models import Group, Schedule, Event, Membership
+from rest_framework import viewsets, permissions, generics
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from .models import User, Group, Schedule, Event, Membership
 from .serializers import (
+    UserSerializer,
     GroupSerializer,
     ScheduleSerializer,
     EventSerializer,
     MembershipSerializer
 )
+
+class CreateUserView(generics.CreateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [AllowAny]
 
 class GroupViewSet(viewsets.ModelViewSet):
     queryset = Group.objects.all()
