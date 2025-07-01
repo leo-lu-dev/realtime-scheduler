@@ -5,12 +5,12 @@ from .models import User, Group, Schedule, Event, Membership
 from .serializers import UserSerializer, GroupSerializer, ScheduleSerializer, EventSerializer, MembershipSerializer
 from django.shortcuts import get_object_or_404
 
-class CreateUserView(generics.CreateAPIView):
+class UserCreateView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 
-class GroupListCreate(generics.ListCreateAPIView):
+class GroupListCreateView(generics.ListCreateAPIView):
     serializer_class = GroupSerializer
     permission_classes = [IsAuthenticated]
 
@@ -18,9 +18,17 @@ class GroupListCreate(generics.ListCreateAPIView):
         return Group.objects.filter(memberships__user=self.request.user)
     
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        group = serializer.save(admin=self.request.user)
+        Membership.objects.get_or_create(user=self.request.user, group=group)
 
-class ScheduleListCreate(generics.ListCreateAPIView):
+class GroupDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = GroupSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Group.objects.filter(admin=self.request.user)
+
+class ScheduleListCreateView(generics.ListCreateAPIView):
     serializer_class = ScheduleSerializer
     permission_classes = [IsAuthenticated]
 
@@ -29,8 +37,15 @@ class ScheduleListCreate(generics.ListCreateAPIView):
     
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+class ScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ScheduleSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Schedule.objects.filter(user=self.request.user)
     
-class EventListCreate(generics.ListCreateAPIView):
+class EventListCreateView(generics.ListCreateAPIView):
     serializer_class = EventSerializer
     permission_classes = [IsAuthenticated]
 
@@ -44,7 +59,15 @@ class EventListCreate(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         serializer.save(schedule=self.get_schedule())
 
-class MembershipListCreate(generics.ListCreateAPIView):
+class EventDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = EventSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        schedule_id = self.kwargs['schedule_id']
+        return Event.objects.filter(schedule_id=schedule_id, schedule__user=self.request.user)
+
+class MembershipListCreateView(generics.ListCreateAPIView):
     serializer_class = MembershipSerializer
     permission_classes = [IsAuthenticated]
 
@@ -60,10 +83,30 @@ class MembershipListCreate(generics.ListCreateAPIView):
         group = self.get_group()
         user = serializer.validated_data.get('user')
 
-        if group.created_by != self.request.user:
+        if group.admin != self.request.user:
             raise PermissionDenied("Only the group owner can manage members.")
 
         if Membership.objects.filter(user=user, group=group).exists():
             raise ValidationError("User is already a member of this group.")
 
         serializer.save(group=group)
+
+class MembershipUpdateView(generics.UpdateAPIView):
+    serializer_class = MembershipSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Membership.objects.filter(user=self.request.user)
+    
+class MembershipDeleteView(generics.DestroyAPIView):
+    serializer_class = MembershipSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return (Membership.objects.filter(user=self.request.user) | Membership.objects.filter(group__admin=self.request.user))
+
+    def perform_destroy(self, instance):
+        if self.request.user not in [instance.user, instance.group.admin]:
+            raise PermissionDenied("Only the user or group admin can remove this membership.")
+        
+        instance.delete()
