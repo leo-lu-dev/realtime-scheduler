@@ -25,9 +25,6 @@ class Event(models.Model):
     start_time = models.TimeField()
     end_time = models.TimeField()
 
-    class Meta:
-        unique_together = ('schedule', 'date', 'start_time', 'end_time')
-
     def __str__(self):
         return f"Event: {self.schedule.user.username} on {self.date} from {self.start_time} to {self.end_time}"
 
