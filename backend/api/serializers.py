@@ -1,14 +1,29 @@
 from rest_framework import serializers
-from django.contrib.auth.models import User
-from .models import Group, Membership, Schedule, Event
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError as DjangoValidationError
+from .models import User, Group, Membership, Schedule, Event
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id','username','password']
-        extra_kwargs = {'password': {'write_only': True}}
+        fields = ['id', 'email', 'display_name', 'password']
+        extra_kwargs = {
+            'password': {'write_only': True},
+            'email': {'required': True},
+            'display_name': {'required': True}
+        }
+
+    def validate_email(self, value):
+        try:
+            validate_email(value)
+        except DjangoValidationError:
+            raise serializers.ValidationError("Enter a valid email address.")
+        return value
 
     def create(self, validated_data):
+        email = validated_data['email']
+        if not validated_data.get('display_name'):
+            validated_data['display_name'] = email.split('@')[0]
         return User.objects.create_user(**validated_data)
 
 class GroupSerializer(serializers.ModelSerializer):

@@ -3,6 +3,7 @@ import {BrowserRouter, Routes, Route, Navigate} from 'react-router-dom'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Schedule from './pages/Schedule'
 import Error from './pages/Error'
 import ProtectedRoute from './components/ProtectedRoutes'
 
@@ -24,6 +25,8 @@ function App() {
         <Route path='/login' element={<Login />}/>
         <Route path='/logout' element={<Logout />}/>
         <Route path='/register' element={<RegisterAndLogout />}/>
+        <Route path='/logout' element={<Logout />}/>
+        <Route path='/schedules' element={<Schedule />}/>
         <Route path='*' element={<Error />}/>
       </Routes>
     </BrowserRouter>
