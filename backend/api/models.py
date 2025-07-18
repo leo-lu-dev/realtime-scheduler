@@ -21,7 +21,6 @@ class UserManager(BaseUserManager):
 
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    username = None
     email = models.EmailField(unique=True)
     display_name = models.CharField(max_length=100)
     USERNAME_FIELD = 'email'

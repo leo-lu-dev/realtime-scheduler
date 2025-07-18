@@ -10,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'password': {'write_only': True},
             'email': {'required': True},
-            'display_name': {'required': True}
+            'display_name': {'required': False}
         }
 
     def validate_email(self, value):
