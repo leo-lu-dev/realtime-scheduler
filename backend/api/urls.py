@@ -19,15 +19,15 @@ urlpatterns = [
     path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
 
     path('groups/', GroupListCreateView.as_view(), name='group-list-create'),
-    path('groups/<int:pk>/', GroupDetailView.as_view(), name='group-detail'),
+    path('groups/<uuid:group_id>/', GroupDetailView.as_view(), name='group-detail'),
 
-    path('groups/<int:group_id>/members/', MembershipListCreateView.as_view(), name='member-list-create'),
-    path('members/<int:pk>/', MembershipUpdateView.as_view(), name='member-update'),
-    path('members/<int:pk>/delete/', MembershipDeleteView.as_view(), name='member-delete'),
+    path('groups/<uuid:group_id>/members/', MembershipListCreateView.as_view(), name='member-list-create'),
+    path('members/<uuid:membership_id>/', MembershipUpdateView.as_view(), name='member-update'),
+    path('members/<uuid:membership_id>/delete/', MembershipDeleteView.as_view(), name='member-delete'),
 
     path('schedules/', ScheduleListCreateView.as_view(), name='schedule-list-create'),
-    path('schedules/<int:pk>/', ScheduleDetailView.as_view(), name='schedule-detail'),
+    path('schedules/<uuid:schedule_id>/', ScheduleDetailView.as_view(), name='schedule-detail'),
 
-    path('schedules/<int:schedule_id>/events/', EventListCreateView.as_view(), name='event-list-create'),
-    path('schedules/<int:schedule_id>/events/<int:pk>/', EventDetailView.as_view(), name='event-detail'),
+    path('schedules/<uuid:schedule_id>/events/', EventListCreateView.as_view(), name='event-list-create'),
+    path('schedules/<uuid:schedule_id>/events/<uuid:event_id>/', EventDetailView.as_view(), name='event-detail'),
 ]

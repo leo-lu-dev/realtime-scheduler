@@ -50,6 +50,7 @@ class Schedule(models.Model):
         return f"{self.name} ({self.user.username})"
 
 class Event(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     schedule = models.ForeignKey(Schedule, on_delete=models.CASCADE, related_name='events')
     date = models.DateField()
     start_time = models.TimeField()
@@ -59,6 +60,7 @@ class Event(models.Model):
         return f"Event: {self.schedule.user.username} on {self.date} from {self.start_time} to {self.end_time}"
 
 class Membership(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='memberships')
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='memberships')
     active_schedule = models.ForeignKey(
