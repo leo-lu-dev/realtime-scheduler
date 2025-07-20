@@ -9,7 +9,8 @@ import Landing from './pages/Landing'
 import ProtectedRoute from './auth/ProtectedRoutes'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import './styles/index.css'
-import Header from './components/Header'
+import PublicLayout from './components/PublicLayout'
+import ProtectedLayout from './components/ProtectedLayout'
 import { useEffect } from 'react'
 
 function Logout() {
@@ -24,16 +25,18 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Header />
         <Routes>
-          <Route path='/' element={<Landing />}/>
-          <Route path='/home' element={<ProtectedRoute><Home /></ProtectedRoute>}/>
-          <Route path='/login' element={<Login />}/>
-          <Route path='/logout' element={<Logout />}/>
-          <Route path='/register' element={<Register />}/>
-          <Route path='/logout' element={<Logout />}/>
-          <Route path='/schedules' element={<Schedule />}/>
-          <Route path='*' element={<Error />}/>
+          <Route element={<PublicLayout />}>
+            <Route path='/' element={<Landing />}/>
+            <Route path='/login' element={<Login />}/>
+            <Route path='/logout' element={<Logout />}/>
+            <Route path='/register' element={<Register />}/>
+            <Route path='*' element={<Error />}/>
+          </Route>
+          <Route element={<ProtectedLayout />}>
+            <Route path='/home' element={<ProtectedRoute><Home /></ProtectedRoute>}/>
+            <Route path='/schedules' element={<Schedule />}/>
+          </Route>
         </Routes>
       </BrowserRouter>
     </AuthProvider>

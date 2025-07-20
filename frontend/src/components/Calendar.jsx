@@ -18,7 +18,7 @@ const localizer = dateFnsLocalizer({
     locales,
 })
 
-export default function MyCalendar({ events, onSelectEvent }) {
+function MyCalendar({ events, onSelectEvent }) {
     return (
         <Calendar
             localizer={localizer}
@@ -30,3 +30,5 @@ export default function MyCalendar({ events, onSelectEvent }) {
         />
     )
 }
+
+export default MyCalendar

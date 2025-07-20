@@ -1,37 +1,29 @@
 import styles from '../styles/Header.module.css'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
 
-function Header() {
-    const { isLoggedIn } = useAuth()
-
+function Header({ status }) {
     return (
-        <header className={styles.header}>
+        <header className={status==='protected' ? styles.headerCropped : styles.headerFull}>
             <div className={styles.left}>
-                <Link to={isLoggedIn ? "/home" : "/"} className={styles.title}>Converge</Link>
-            </div>
-            <div className={styles.center}>
                 {
-                    isLoggedIn && (
-                        <>
-                            <Link to="/schedules" className={styles.link}>My Calendar</Link>
-                            <Link to="/schedules" className={styles.link}>Groups</Link>
-                        </>
+                    status==='protected' ? (
+                        <><div to={status==='protected' ? "/home" : "/"} className={styles.title}>Dashboard</div></>  
+                    ) : (
+                        <><Link to={status==='protected' ? "/home" : "/"} className={styles.title}>Converge</Link></>
                     )
                 }
             </div>
             <div className={styles.right}>
                 {
-                    isLoggedIn ? (
+                    status==='protected' ? (
                         <>
-                            <Link to="/login" className={styles.link}>Profile</Link>
                             <Link to="/logout" className={styles.link}>Logout</Link>
                         </>
                     ) : (
                         <>
                             <Link to="/login" className={styles.link}>Log In</Link>
                             <button className={styles.button}>
-                                <Link to="/register" className={styles.buttonlink}>Sign Up</Link>
+                                <Link to="/register" className={styles.link}>Sign Up</Link>
                             </button>
                         </>
                     )
