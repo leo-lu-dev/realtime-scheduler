@@ -26,7 +26,7 @@ function MyCalendar({ events, onSelectEvent }) {
             startAccessor="start"
             endAccessor="end"
             onSelectEvent={onSelectEvent}
-            style={{ height: 600 }}
+            style={{ height: 800 }}
         />
     )
 }

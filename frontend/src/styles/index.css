@@ -1,7 +1,21 @@
-html, body {
+html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
   background-color: #fff4de;
   font-family: 'Satoshi', sans-serif;
+  overflow: hidden
+}
+
+.title {
+    text-decoration: none;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+.link {
+    text-decoration: none;
+    color: #ffffff;
+    font-weight: 500;
 }
