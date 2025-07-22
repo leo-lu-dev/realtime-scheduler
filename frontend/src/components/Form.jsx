@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import api from '../api'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { ACCESS_TOKEN, REFRESH_TOKEN } from '../constants'
 
 function Form({route, method}) {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const navigate = useNavigate()
-    const { login } = useAuth()
 
     const name = method === 'login' ? 'Login' : 'Register'
 
@@ -18,8 +17,13 @@ function Form({route, method}) {
 
         try {
             const res = await api.post(route, {email, password})
+            console.log('res:', res);
+            console.log('res.data:', res.data);
+
             if (method === 'login') {
-                login(res.data.access, res.data.refresh)
+                localStorage.setItem(ACCESS_TOKEN, res.data.access)
+                localStorage.setItem(REFRESH_TOKEN, res.data.refresh)
+                // setIsLoggedIn(true)
                 navigate('/home')
             }
             else{
