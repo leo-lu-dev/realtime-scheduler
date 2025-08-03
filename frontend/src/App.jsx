@@ -12,6 +12,7 @@ import ProtectedRoute from './auth/ProtectedRoutes'
 import PublicLayout from './components/PublicLayout'
 import ProtectedLayout from './components/ProtectedLayout'
 import { PopupProvider } from './context/PopupContext'
+import { AuthProvider } from './auth/AuthContext'
 
 function Logout() {
   localStorage.clear()
@@ -27,24 +28,26 @@ function Logout() {
 
 function App() {
   return (
-    <PopupProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<PublicLayout />}>
-            <Route path='/' element={<Landing />}/>
-            {/* <Route path='/login' element={<Login />}/> */}
-            <Route path='/logout' element={<Logout />}/>
-            {/* <Route path='/register' element={<RegisterAndLogout />}/> */}
-            <Route path='*' element={<Error />}/>
-          </Route>
-          <Route element={<ProtectedLayout />}>
-            <Route path='/home' element={<ProtectedRoute><Home /></ProtectedRoute>}/>
-            <Route path='/schedules' element={<ProtectedRoute><ScheduleList /></ProtectedRoute>}/>
-            <Route path="/schedules/:id" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </PopupProvider>
+    <AuthProvider>
+      <PopupProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<PublicLayout />}>
+              <Route path='/' element={<Landing />}/>
+              {/* <Route path='/login' element={<Login />}/> */}
+              <Route path='/logout' element={<Logout />}/>
+              {/* <Route path='/register' element={<RegisterAndLogout />}/> */}
+              <Route path='*' element={<Error />}/>
+            </Route>
+            <Route element={<ProtectedLayout />}>
+              <Route path='/home' element={<ProtectedRoute><Home /></ProtectedRoute>}/>
+              <Route path='/schedules' element={<ProtectedRoute><ScheduleList /></ProtectedRoute>}/>
+              <Route path="/schedules/:id" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </PopupProvider>
+    </AuthProvider>
   )
 }
 

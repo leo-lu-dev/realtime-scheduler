@@ -1,15 +1,35 @@
 import styles from '../styles/Popup.module.css'
-import Form from './Form'
+import AuthForm from './AuthForm'
+import EventForm from './EventForm'
 
-function Popup ({ method, onClose }) {
+function Popup ({ method, onClose, route = null, event = {}, onSuccess }) {
   const renderContent = () => {
     switch (method) {
       case 'login':
-        return <Form route='/api/token/' method='login'/>;
+        return <AuthForm route='/api/token/' method='login'/>;
       case 'register':
-        return <Form route='/api/register/' method='register'/>;
+        return <AuthForm route='/api/register/' method='register'/>;
       case 'create_schedule':
         return <div>Create Schedule</div>;
+      case 'create_event':
+        return (
+          <EventForm
+            route={route}
+            method="create"
+            onClose={onClose}
+            onSuccess={onSuccess}
+          />
+        );
+      case 'edit_event':
+        return (
+          <EventForm
+            route={route}
+            method="edit"
+            event={event}
+            onClose={onClose}
+            onSuccess={onSuccess}
+          />
+        );
       case 'link_calendar':
         return <div>Link Calendar</div>;
       default:

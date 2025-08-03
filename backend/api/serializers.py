@@ -56,5 +56,5 @@ class ScheduleSerializer(serializers.ModelSerializer):
 class EventSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
-        fields = ['id', 'schedule', 'date', 'start_time', 'end_time']
+        fields = ['id', 'schedule', 'title', 'start', 'end', 'description']
         extra_kwargs = {'schedule': {'read_only': True}}

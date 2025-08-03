@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import api from '../api';
-import { ACCESS_TOKEN } from '../constants';
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import api from '../api'
+import { ACCESS_TOKEN } from '../constants'
 
 function ScheduleList() {
   const [schedules, setSchedules] = useState([]);

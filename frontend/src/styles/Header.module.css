@@ -4,14 +4,15 @@
     justify-content: space-between;
     align-items: center;
     height: 4rem;
-    padding: 1rem;
+    padding: 1rem 0.75rem;
     background-color: #1a1146;
     box-sizing: border-box;
 }
 
 .left {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
-  margin-right: 10rem;
 }
 
 .right {
@@ -28,4 +29,10 @@
     font-weight: bold;
     border: none;
     cursor: pointer;
+}
+
+.logo {
+  height: 2.25rem;
+  width: auto;
+  margin-right: 0.75rem;
 }

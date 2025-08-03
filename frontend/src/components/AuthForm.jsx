@@ -3,7 +3,7 @@ import api from '../api'
 import { useNavigate } from 'react-router-dom'
 import { ACCESS_TOKEN, REFRESH_TOKEN } from '../constants'
 
-function Form({route, method}) {
+function AuthForm({route, method}) {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
@@ -25,7 +25,7 @@ function Form({route, method}) {
                 localStorage.setItem(REFRESH_TOKEN, res.data.refresh)
                 navigate('/home')
             }
-            else{
+            else {
                 localStorage.clear()
                 navigate('/?popup=login')
             }
@@ -60,4 +60,4 @@ function Form({route, method}) {
     </form>
 }
 
-export default Form
+export default AuthForm
