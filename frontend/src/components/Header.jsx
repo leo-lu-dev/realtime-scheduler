@@ -2,10 +2,11 @@ import { useState } from 'react';
 import styles from '../styles/Header.module.css';
 import { Link, useSearchParams } from 'react-router-dom';
 import Popup from './Popup';
-import { PopupContext } from '../context/PopupContext';
+import { useAuth } from '../auth/AuthContext';
 import logo from '../assets/converge-rounded.png';
 
-function Header({ status }) {
+function Header() {
+    const { isLoggedIn, isAuthLoaded } = useAuth();
     const [searchParams, setSearchParams] = useSearchParams();
     const method = searchParams.get("popup");
 
@@ -16,22 +17,21 @@ function Header({ status }) {
         <>
             <header className={styles.header}>
                 <div className={styles.left}>
-                    <Link to={status === 'protected' ? "/home" : "/"} className='title'>
+                    <Link to={isLoggedIn ? "/home" : "/"} className='title'>
                         <img src={logo} alt="Converge Logo" className={styles.logo} />
                         <span className={styles.title}>Converge</span>
                     </Link>
                 </div>
                 <div className={styles.right}>
-                    {
-                        status === 'protected' ? (
-                            <Link to="/logout" className='link'>Logout</Link>
-                        ) : (
-                            <>
+                    {isAuthLoaded && (
+                        isLoggedIn
+                            ? <Link to="/logout" className='link'>Logout</Link>
+                            : <>
                                 <button className='link' onClick={() => openPopup('login')}>Log In</button>
                                 <button className={styles.button} onClick={() => openPopup('register')}>Sign Up</button>
                             </>
-                        )
-                    }
+                    )}
+
                 </div>
             </header>
 

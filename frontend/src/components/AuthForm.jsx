@@ -2,13 +2,14 @@ import { useState } from 'react'
 import api from '../api'
 import { useNavigate } from 'react-router-dom'
 import { ACCESS_TOKEN, REFRESH_TOKEN } from '../constants'
+import { useAuth } from '../auth/AuthContext';
 
 function AuthForm({route, method}) {
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [loading, setLoading] = useState(false)
     const navigate = useNavigate()
-
+    const { login, logout } = useAuth();
     const name = method === 'login' ? 'Login' : 'Register'
 
     const handleSubmit = async (e) => {
@@ -21,12 +22,11 @@ function AuthForm({route, method}) {
             console.log('res.data:', res.data);
 
             if (method === 'login') {
-                localStorage.setItem(ACCESS_TOKEN, res.data.access)
-                localStorage.setItem(REFRESH_TOKEN, res.data.refresh)
+                login(res.data.access, res.data.refresh);
                 navigate('/home')
             }
             else {
-                localStorage.clear()
+                logout()
                 navigate('/?popup=login')
             }
         }
