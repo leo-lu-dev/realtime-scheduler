@@ -24,6 +24,8 @@ class GroupListCreateView(generics.ListCreateAPIView):
 class GroupDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = GroupSerializer
     permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'group_id'
+    lookup_field = 'id'
 
     def get_queryset(self):
         return Group.objects.filter(admin=self.request.user)
@@ -41,10 +43,12 @@ class ScheduleListCreateView(generics.ListCreateAPIView):
 class ScheduleDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ScheduleSerializer
     permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'schedule_id'
+    lookup_field = 'id'
 
     def get_queryset(self):
         return Schedule.objects.filter(user=self.request.user)
-    
+
 class EventListCreateView(generics.ListCreateAPIView):
     serializer_class = EventSerializer
     permission_classes = [IsAuthenticated]
@@ -62,6 +66,8 @@ class EventListCreateView(generics.ListCreateAPIView):
 class EventDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = EventSerializer
     permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'event_id'
+    lookup_field = 'id'
 
     def get_queryset(self):
         schedule_id = self.kwargs['schedule_id']
@@ -94,19 +100,22 @@ class MembershipListCreateView(generics.ListCreateAPIView):
 class MembershipUpdateView(generics.UpdateAPIView):
     serializer_class = MembershipSerializer
     permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'membership_id'
+    lookup_field = 'id'
 
     def get_queryset(self):
         return Membership.objects.filter(user=self.request.user)
-    
+
 class MembershipDeleteView(generics.DestroyAPIView):
     serializer_class = MembershipSerializer
     permission_classes = [IsAuthenticated]
+    lookup_url_kwarg = 'membership_id'
+    lookup_field = 'id'
 
     def get_queryset(self):
-        return (Membership.objects.filter(user=self.request.user) | Membership.objects.filter(group__admin=self.request.user))
+        return Membership.objects.filter(user=self.request.user) | Membership.objects.filter(group__admin=self.request.user)
 
     def perform_destroy(self, instance):
         if self.request.user not in [instance.user, instance.group.admin]:
             raise PermissionDenied("Only the user or group admin can remove this membership.")
-        
         instance.delete()
