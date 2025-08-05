@@ -1,22 +1,23 @@
 import { useState } from 'react';
 import api from '../api';
 
-function toDatetimeLocalFormat(date) {
-  const d = new Date(date);
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
+function toLocalFormat(utcDateString) {
+  const date = new Date(utcDateString);
+  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+  return date.toISOString().slice(0, 16);
+}
+
+function toUTCFormat(localDatetimeStr) {
+  const date = new Date(localDatetimeStr);
+  return date.toISOString();
 }
 
 function EventForm({ route, method, event = {}, onSuccess, onClose }) {
   const isEdit = method === 'edit';
 
   const [title, setTitle] = useState(event?.title || '');
-  const [start, setStart] = useState(
-    event?.start ? toDatetimeLocalFormat(event.start) : ''
-  );
-  const [end, setEnd] = useState(
-    event?.end ? toDatetimeLocalFormat(event.end) : ''
-  );
+  const [start, setStart] = useState(event?.start ? toLocalFormat(event.start) : '');
+  const [end, setEnd] = useState(event?.end ? toLocalFormat(event.end) : '');
   const [description, setDescription] = useState(event?.description || '');
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +26,13 @@ function EventForm({ route, method, event = {}, onSuccess, onClose }) {
     setLoading(true);
 
     try {
-      const data = { title, start, end, description };
+      const data = {
+        title,
+        start: toUTCFormat(start),
+        end: toUTCFormat(end),
+        description,
+      };
+
       const res = isEdit
         ? await api.put(route, data)
         : await api.post(route, data);
