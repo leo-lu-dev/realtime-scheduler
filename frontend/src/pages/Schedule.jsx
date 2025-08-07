@@ -1,20 +1,20 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import api from '../api';
 import MyCalendar from '../components/Calendar';
 import { useScheduleSocket } from '../hooks/useScheduleSocket';
-import Popup from '../components/Popup';
 import { useAuth } from '../auth/AuthContext';
+import { usePopup } from '../popup/PopupContext';
 
 function Schedule() {
   const { id } = useParams();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingName, setEditingName] = useState(false);
+  const [scheduleName, setScheduleName] = useState('');
+  const [savingName, setSavingName] = useState(false);
   const { accessToken, isAuthLoaded } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const method = searchParams.get('popup');
-  const selectedId = searchParams.get('id');
-  const selectedEvent = events.find(e => e.id?.toString() === selectedId);
+  const { openPopup } = usePopup();
 
   const onEventReceived = useCallback((newEvent) => {
     setEvents(prev => {
@@ -31,13 +31,6 @@ function Schedule() {
   }, []);
 
   const { sendEvent } = useScheduleSocket(id, onEventReceived, accessToken, isAuthLoaded);
-
-  const openPopup = (method, eventId = null) => {
-    const params = { popup: method };
-    if (eventId) params.id = eventId;
-    setSearchParams(params);
-  };
-  const closePopup = () => setSearchParams({});
 
   useEffect(() => {
     async function fetchEvents() {
@@ -57,8 +50,31 @@ function Schedule() {
       }
     }
 
+    async function fetchSchedule() {
+      try {
+        const res = await api.get(`/api/schedules/${id}/`);
+        setScheduleName(res.data.name || 'Untitled');
+      } catch (err) {
+        console.error('Failed to fetch schedule name:', err);
+      }
+    }
+
     fetchEvents();
+    fetchSchedule();
   }, [id]);
+
+  const handleNameSave = async () => {
+    if (!scheduleName.trim()) return;
+    setSavingName(true);
+    try {
+      await api.patch(`/api/schedules/${id}/`, { name: scheduleName });
+      setEditingName(false);
+    } catch (err) {
+      alert('Failed to save name');
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const handleSuccess = (eventData, action) => {
     if (action === 'create') {
@@ -79,36 +95,52 @@ function Schedule() {
     }
   };
 
+  const handleCreate = () => {
+    openPopup('create_event', {
+      route: `/api/schedules/${id}/events/`,
+      onSuccess: handleSuccess
+    });
+  };
+
+  const handleEdit = (event) => {
+    openPopup('edit_event', {
+      route: `/api/schedules/${id}/events/${event.id}/`,
+      data: event,
+      onSuccess: handleSuccess
+    });
+  };
+
   if (loading) return <p>Loading events...</p>;
 
   return (
     <>
-      <div>
-        <button className='link' onClick={() => openPopup('create_event')}>Create</button>
+      <div className="schedule-header">
+        {editingName ? (
+          <>
+            <input
+              className="schedule-name-input"
+              type="text"
+              value={scheduleName}
+              onChange={(e) => setScheduleName(e.target.value)}
+            />
+            <button onClick={handleNameSave} disabled={savingName}>
+              {savingName ? 'Saving...' : 'Save'}
+            </button>
+          </>
+        ) : (
+          <>
+            <h2 className="schedule-title">{scheduleName}</h2>
+            <button onClick={() => setEditingName(true)}>Edit</button>
+          </>
+        )}
+      </div>
+      <div className="schedule-controls">
+        <button className="link" onClick={handleCreate}>Create</button>
       </div>
       <MyCalendar
         events={events}
-        onSelectEvent={(event) => openPopup('edit_event', event.id)}
+        onSelectEvent={handleEdit}
       />
-
-      {method === 'create_event' && (
-        <Popup
-          method="create_event"
-          onClose={closePopup}
-          route={`/api/schedules/${id}/events/`}
-          onSuccess={handleSuccess}
-        />
-      )}
-
-      {method === 'edit_event' && selectedEvent && (
-        <Popup
-          method="edit_event"
-          onClose={closePopup}
-          event={selectedEvent}
-          route={`/api/schedules/${id}/events/${selectedEvent.id}/`}
-          onSuccess={handleSuccess}
-        />
-      )}
     </>
   );
 }

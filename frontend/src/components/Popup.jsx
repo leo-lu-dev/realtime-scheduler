@@ -1,16 +1,27 @@
 import styles from '../styles/Popup.module.css'
 import AuthForm from './AuthForm'
 import EventForm from './EventForm'
+import ScheduleForm from './ScheduleForm'
 
 function Popup ({ method, onClose, route = null, event = {}, onSuccess }) {
   const renderContent = () => {
     switch (method) {
       case 'login':
-        return <AuthForm route='/api/token/' method='login'/>;
+        return (
+          <AuthForm 
+            route='/api/token/' 
+            method='login'
+          />
+        );
       case 'register':
-        return <AuthForm route='/api/register/' method='register'/>;
+        return (
+          <AuthForm 
+            route='/api/register/' 
+            method='register'
+          />
+        );
       case 'create_schedule':
-        return <div>Create Schedule</div>;
+        return <ScheduleForm />;
       case 'create_event':
         return (
           <EventForm
@@ -30,8 +41,8 @@ function Popup ({ method, onClose, route = null, event = {}, onSuccess }) {
             onSuccess={onSuccess}
           />
         );
-      case 'link_calendar':
-        return <div>Link Calendar</div>;
+      // case 'link_calendar':
+      //   return <div>Link Calendar</div>;
       default:
         return <div>Unknown</div>;
     }
