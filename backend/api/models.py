@@ -47,7 +47,8 @@ class Schedule(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.name} ({self.user.username})"
+        owner = getattr(self.user, "display_name", None) or self.user.email
+        return f"{self.name} ({owner})"
 
 class Event(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -58,7 +59,8 @@ class Event(models.Model):
     description = models.TextField(blank=True)
 
     def __str__(self):
-        return f"Event: {self.schedule.user.username} from {self.start} to {self.end}"
+        owner = getattr(self.schedule.user, "display_name", None) or self.schedule.user.email
+        return f"Event: {owner} from {self.start} to {self.end}"
 
 class Membership(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -73,4 +75,5 @@ class Membership(models.Model):
         unique_together = ('user', 'group')
 
     def __str__(self):
-        return f"{self.user.username} in {self.group.name} (using {self.active_schedule})"
+        owner = getattr(self.user, "display_name", None) or self.user.email
+        return f"{owner} in {self.group.name} (using {self.active_schedule})"

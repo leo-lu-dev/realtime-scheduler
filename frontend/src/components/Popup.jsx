@@ -2,21 +2,22 @@ import styles from '../styles/Popup.module.css'
 import AuthForm from './AuthForm'
 import EventForm from './EventForm'
 import ScheduleForm from './ScheduleForm'
+import AddMembersForm from './AddMembersForm';
 
-function Popup ({ method, onClose, route = null, event = {}, onSuccess }) {
+function Popup({ method, onClose, route = null, event = {}, onSuccess }) {
   const renderContent = () => {
     switch (method) {
       case 'login':
         return (
-          <AuthForm 
-            route='/api/token/' 
+          <AuthForm
+            route='/api/token/'
             method='login'
           />
         );
       case 'register':
         return (
-          <AuthForm 
-            route='/api/register/' 
+          <AuthForm
+            route='/api/register/'
             method='register'
           />
         );
@@ -41,8 +42,14 @@ function Popup ({ method, onClose, route = null, event = {}, onSuccess }) {
             onSuccess={onSuccess}
           />
         );
-      // case 'link_calendar':
-      //   return <div>Link Calendar</div>;
+      case 'add_members':
+        return (
+          <AddMembersForm
+            groupId={route}
+            onClose={onClose}
+            onSuccess={onSuccess}
+          />
+        );
       default:
         return <div>Unknown</div>;
     }

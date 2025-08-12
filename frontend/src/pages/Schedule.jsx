@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import api from '../api';
 import ScheduleBoard from '../components/ScheduleBoard';
 
+
 export default function Schedule() {
   const { id } = useParams();
   const [scheduleName, setScheduleName] = useState('');

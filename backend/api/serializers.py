@@ -37,7 +37,7 @@ class GroupSerializer(serializers.ModelSerializer):
 class MembershipSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     active_schedule = serializers.PrimaryKeyRelatedField(
-        queryset=Schedule.objects.none(),  # set real queryset in __init__
+        queryset=Schedule.objects.none(),
         allow_null=True,
         required=False
     )
@@ -52,6 +52,12 @@ class MembershipSerializer(serializers.ModelSerializer):
         request = self.context.get('request')
         if request and request.user.is_authenticated:
             self.fields['active_schedule'].queryset = Schedule.objects.filter(user=request.user)
+
+class MembershipAddByEmailSerializer(serializers.Serializer):
+    emails = serializers.ListField(
+        child=serializers.EmailField(),
+        allow_empty=False
+    )
 
 class ScheduleSerializer(serializers.ModelSerializer):
     class Meta:

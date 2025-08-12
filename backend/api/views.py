@@ -1,13 +1,15 @@
-from rest_framework import generics
+from rest_framework import generics, permissions, status
 from rest_framework.exceptions import ValidationError, PermissionDenied
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, SAFE_METHODS, BasePermission
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .serializers import UserSerializer
 from .models import User, Group, Schedule, Event, Membership
-from .serializers import UserSerializer, GroupSerializer, ScheduleSerializer, EventSerializer, MembershipSerializer
+from .serializers import UserSerializer, GroupSerializer, ScheduleSerializer, EventSerializer, MembershipSerializer, MembershipAddByEmailSerializer
 from django.shortcuts import get_object_or_404
+from django.db.models import Q, Exists, OuterRef
+from django.http import Http404
 
 class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]
@@ -20,6 +22,13 @@ class UserCreateView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
+
+class IsGroupAdmin(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        is_admin = (obj.admin_id == request.user.id)
+        if request.method in SAFE_METHODS:
+            return is_admin or obj.memberships.filter(user=request.user).exists()
+        return is_admin
 
 class GroupListCreateView(generics.ListCreateAPIView):
     serializer_class = GroupSerializer
@@ -34,12 +43,14 @@ class GroupListCreateView(generics.ListCreateAPIView):
 
 class GroupDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = GroupSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsGroupAdmin]
     lookup_url_kwarg = 'group_id'
     lookup_field = 'id'
 
     def get_queryset(self):
-        return Group.objects.filter(admin=self.request.user)
+      return Group.objects.filter(
+          Q(admin=self.request.user) | Q(memberships__user=self.request.user)
+      ).distinct()
 
 class ScheduleListCreateView(generics.ListCreateAPIView):
     serializer_class = ScheduleSerializer
@@ -86,27 +97,54 @@ class EventDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class MembershipListCreateView(generics.ListCreateAPIView):
     serializer_class = MembershipSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_group(self):
         group_id = self.kwargs['group_id']
-        return get_object_or_404(Group.objects.filter(memberships__user=self.request.user), id=group_id)
+        member_exists = Membership.objects.filter(group_id=OuterRef('id'), user=self.request.user)
+        qs = (
+            Group.objects
+            .filter(id=group_id)
+            .annotate(is_member=Exists(member_exists))
+            .filter(Q(admin=self.request.user) | Q(is_member=True))
+        )
+        group = qs.first()
+        if not group:
+            raise Http404("Group not found")
+        return group
 
     def get_queryset(self):
         group = self.get_group()
-        return Membership.objects.filter(group=group)
+        return Membership.objects.filter(group=group).select_related('user', 'active_schedule')
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
         group = self.get_group()
-        user = serializer.validated_data.get('user')
+        if group.admin != request.user:
+            raise PermissionDenied("Only the group owner can add members.")
 
-        if group.admin != self.request.user:
-            raise PermissionDenied("Only the group owner can manage members.")
+        add_ser = MembershipAddByEmailSerializer(data=request.data)
+        add_ser.is_valid(raise_exception=True)
 
-        if Membership.objects.filter(user=user, group=group).exists():
-            raise ValidationError("User is already a member of this group.")
+        emails = [User.objects.normalize_email(e).lower() for e in add_ser.validated_data['emails']]
 
-        serializer.save(group=group)
+        users = list(User.objects.filter(email__in=emails))
+        user_by_email = {u.email.lower(): u for u in users}
+
+        created = []
+        skipped = []
+
+        for email in emails:
+            u = user_by_email.get(email)
+            if not u:
+                skipped.append({'email': email, 'reason': 'not_found'})
+                continue
+            if Membership.objects.filter(user=u, group=group).exists():
+                skipped.append({'email': email, 'reason': 'already_member'})
+                continue
+            m = Membership.objects.create(user=u, group=group)
+            created.append(MembershipSerializer(m, context={'request': request}).data)
+
+        return Response({'created': created, 'skipped': skipped}, status=status.HTTP_201_CREATED)
 
 class MembershipUpdateView(generics.UpdateAPIView):
     serializer_class = MembershipSerializer
