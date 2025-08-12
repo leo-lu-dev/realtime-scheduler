@@ -27,14 +27,20 @@ class UserSerializer(serializers.ModelSerializer):
         return User.objects.create_user(**validated_data)
 
 class GroupSerializer(serializers.ModelSerializer):
+    admin = UserSerializer(read_only=True)
+
     class Meta:
         model = Group
         fields = ['id', 'name', 'admin', 'created_at']
-        extra_kwargs = {'admin': {'read_only': True}, 'created_at': {'read_only': True}}
+        extra_kwargs = {'created_at': {'read_only': True}}
 
 class MembershipSerializer(serializers.ModelSerializer):
-    user = serializers.StringRelatedField(read_only=True)
-    active_schedule = serializers.PrimaryKeyRelatedField(read_only=True)
+    user = UserSerializer(read_only=True)
+    active_schedule = serializers.PrimaryKeyRelatedField(
+        queryset=Schedule.objects.none(),  # set real queryset in __init__
+        allow_null=True,
+        required=False
+    )
 
     class Meta:
         model = Membership

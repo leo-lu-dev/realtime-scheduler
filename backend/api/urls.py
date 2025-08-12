@@ -1,6 +1,7 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .views import (
+    CurrentUserView,
     UserCreateView,
     GroupListCreateView,
     GroupDetailView,
@@ -30,4 +31,6 @@ urlpatterns = [
 
     path('schedules/<uuid:schedule_id>/events/', EventListCreateView.as_view(), name='event-list-create'),
     path('schedules/<uuid:schedule_id>/events/<uuid:event_id>/', EventDetailView.as_view(), name='event-detail'),
+
+    path('user/', CurrentUserView.as_view(), name='current-user'),
 ]

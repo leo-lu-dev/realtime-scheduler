@@ -1,16 +1,18 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { PopupProvider } from './popup/PopupContext';
+import PopupRenderer from './popup/PopupRenderer';
+import { AuthProvider, useAuth } from './auth/AuthContext';
+import ProtectedRoute from './auth/ProtectedRoutes';
 import './styles/index.css';
 import Home from './pages/Home';
+import Error from './pages/Error';
 import ScheduleList from './pages/ScheduleList';
 import Schedule from './pages/Schedule';
-import Error from './pages/Error';
 import Landing from './pages/Landing';
-import ProtectedRoute from './auth/ProtectedRoutes';
 import Layout from './components/Layout';
-import { PopupProvider } from './popup/PopupContext';
-import { AuthProvider, useAuth } from './auth/AuthContext';
-import PopupRenderer from './popup/PopupRenderer';
+import GroupList from './pages/GroupList';
+import Group from './pages/Group'
 
 function Logout() {
   const { logout } = useAuth();
@@ -35,6 +37,8 @@ function App() {
               <Route path='/home' element={<ProtectedRoute><Home /></ProtectedRoute>} />
               <Route path='/schedules' element={<ProtectedRoute><ScheduleList /></ProtectedRoute>} />
               <Route path='/schedules/:id' element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
+              <Route path='/groups' element={<ProtectedRoute><GroupList /></ProtectedRoute>} />
+              <Route path='/groups/:id' element={<ProtectedRoute><Group /></ProtectedRoute>} />
             </Route>
           </Routes>
           <PopupRenderer />

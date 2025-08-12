@@ -37,11 +37,11 @@ export function useScheduleSocket(scheduleId, onEventReceived, accessToken, isAu
     };
   }, [scheduleId, onEventReceived, accessToken, isAuthLoaded]); // dependencies
 
-  const sendEvent = (event) => {
+  const sendMessage = (event) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ event }));
     }
   };
 
-  return { sendEvent };
+  return { sendMessage };
 }

@@ -16,6 +16,7 @@ function Layout() {
           {isLoggedIn && (
             <div className={styles.sidebar}>
               <Link to='/schedules' className='link'>Schedules</Link>
+              <Link to='/groups' className='link'>Groups</Link>
             </div>
           )}
           <main className={styles.main}>
