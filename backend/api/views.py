@@ -3,13 +3,15 @@ from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.permissions import IsAuthenticated, AllowAny, SAFE_METHODS, BasePermission
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-from .serializers import UserSerializer
-from .models import User, Group, Schedule, Event, Membership
 from .serializers import UserSerializer, GroupSerializer, ScheduleSerializer, EventSerializer, MembershipSerializer, MembershipAddByEmailSerializer
+from .models import User, Group, Schedule, Event, Membership
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Exists, OuterRef
 from django.http import Http404
+from datetime import timedelta, timezone as dt_timezone
+from django.utils.dateparse import parse_datetime
+from django.utils import timezone
+from .utils import broadcast_schedule_change
 
 class CurrentUserView(APIView):
     permission_classes = [IsAuthenticated]
@@ -48,9 +50,18 @@ class GroupDetailView(generics.RetrieveUpdateDestroyAPIView):
     lookup_field = 'id'
 
     def get_queryset(self):
-      return Group.objects.filter(
-          Q(admin=self.request.user) | Q(memberships__user=self.request.user)
-      ).distinct()
+        return Group.objects.filter(Q(admin=self.request.user) | Q(memberships__user=self.request.user)).distinct()
+    
+    def perform_update(self, serializer):
+        obj = serializer.save()
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+        layer = get_channel_layer()
+        if layer:
+            async_to_sync(layer.group_send)(
+                f"group_{obj.id}",
+                {"type": "broadcast", "event": {"type": "group_name_updated", "groupId": str(obj.id), "name": obj.name}},
+            )
 
 class ScheduleListCreateView(generics.ListCreateAPIView):
     serializer_class = ScheduleSerializer
@@ -83,7 +94,8 @@ class EventListCreateView(generics.ListCreateAPIView):
         return Event.objects.filter(schedule=self.get_schedule())
 
     def perform_create(self, serializer):
-        serializer.save(schedule=self.get_schedule())
+        obj = serializer.save(schedule=self.get_schedule())
+        broadcast_schedule_change(obj.schedule_id)
 
 class EventDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = EventSerializer
@@ -94,6 +106,15 @@ class EventDetailView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         schedule_id = self.kwargs['schedule_id']
         return Event.objects.filter(schedule_id=schedule_id, schedule__user=self.request.user)
+    
+    def perform_update(self, serializer):
+        obj = serializer.save()
+        broadcast_schedule_change(obj.schedule_id)
+
+    def perform_destroy(self, instance):
+        sid = instance.schedule_id
+        super().perform_destroy(instance)
+        broadcast_schedule_change(sid)
 
 class MembershipListCreateView(generics.ListCreateAPIView):
     serializer_class = MembershipSerializer
@@ -102,12 +123,7 @@ class MembershipListCreateView(generics.ListCreateAPIView):
     def get_group(self):
         group_id = self.kwargs['group_id']
         member_exists = Membership.objects.filter(group_id=OuterRef('id'), user=self.request.user)
-        qs = (
-            Group.objects
-            .filter(id=group_id)
-            .annotate(is_member=Exists(member_exists))
-            .filter(Q(admin=self.request.user) | Q(is_member=True))
-        )
+        qs = Group.objects.filter(id=group_id).annotate(is_member=Exists(member_exists)).filter(Q(admin=self.request.user) | Q(is_member=True))
         group = qs.first()
         if not group:
             raise Http404("Group not found")
@@ -121,18 +137,13 @@ class MembershipListCreateView(generics.ListCreateAPIView):
         group = self.get_group()
         if group.admin != request.user:
             raise PermissionDenied("Only the group owner can add members.")
-
         add_ser = MembershipAddByEmailSerializer(data=request.data)
         add_ser.is_valid(raise_exception=True)
-
         emails = [User.objects.normalize_email(e).lower() for e in add_ser.validated_data['emails']]
-
         users = list(User.objects.filter(email__in=emails))
         user_by_email = {u.email.lower(): u for u in users}
-
         created = []
         skipped = []
-
         for email in emails:
             u = user_by_email.get(email)
             if not u:
@@ -143,7 +154,6 @@ class MembershipListCreateView(generics.ListCreateAPIView):
                 continue
             m = Membership.objects.create(user=u, group=group)
             created.append(MembershipSerializer(m, context={'request': request}).data)
-
         return Response({'created': created, 'skipped': skipped}, status=status.HTTP_201_CREATED)
 
 class MembershipUpdateView(generics.UpdateAPIView):
@@ -154,6 +164,19 @@ class MembershipUpdateView(generics.UpdateAPIView):
 
     def get_queryset(self):
         return Membership.objects.filter(user=self.request.user)
+    
+    def perform_update(self, serializer):
+        prev = self.get_object().active_schedule_id
+        obj = serializer.save()
+        if obj.active_schedule_id != prev:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+            layer = get_channel_layer()
+            if layer:
+                async_to_sync(layer.group_send)(
+                    f"group_{obj.group_id}",
+                    {"type": "broadcast", "event": {"type": "availability_changed", "groupId": str(obj.group_id)}},
+                )
 
 class MembershipDeleteView(generics.DestroyAPIView):
     serializer_class = MembershipSerializer
@@ -168,3 +191,67 @@ class MembershipDeleteView(generics.DestroyAPIView):
         if self.request.user not in [instance.user, instance.group.admin]:
             raise PermissionDenied("Only the user or group admin can remove this membership.")
         instance.delete()
+
+class GroupAvailabilityView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, group_id):
+        start_str = request.query_params.get('start')
+        end_str = request.query_params.get('end')
+        step = int(request.query_params.get('step', '30'))
+        if not start_str or not end_str:
+            raise ValidationError("start and end are required ISO datetimes")
+        start = parse_datetime(start_str)
+        end = parse_datetime(end_str)
+        if start is None or end is None or start >= end:
+            raise ValidationError("Invalid start/end")
+        if timezone.is_naive(start):
+            start = timezone.make_aware(start, dt_timezone.utc)
+        if timezone.is_naive(end):
+            end = timezone.make_aware(end, dt_timezone.utc)
+        if step <= 0 or step > 240:
+            raise ValidationError("step must be 1..240 minutes")
+        group = Group.objects.filter(Q(id=group_id) & (Q(admin=request.user) | Q(memberships__user=request.user))).distinct().first()
+        if not group:
+            raise PermissionDenied("Not allowed")
+        memberships = Membership.objects.filter(group=group, active_schedule__isnull=False).select_related('active_schedule', 'user')
+        member_count = memberships.count()
+        if member_count == 0:
+            return Response({"stepMinutes": step, "memberCount": 0, "slots": [], "allFreeBlocks": []})
+        schedule_ids = [m.active_schedule_id for m in memberships]
+        events = Event.objects.filter(schedule_id__in=schedule_ids, end__gt=start, start__lt=end).values('schedule_id', 'start', 'end')
+        by_sched = {}
+        for e in events:
+            by_sched.setdefault(e['schedule_id'], []).append((e['start'], e['end']))
+        slots = []
+        step_delta = timedelta(minutes=step)
+        cursor = start
+        while cursor < end:
+            slot_end = min(cursor + step_delta, end)
+            busy_count = 0
+            for sid in schedule_ids:
+                busy = False
+                for s, e in by_sched.get(sid, []):
+                    if not (e <= cursor or s >= slot_end):
+                        busy = True
+                        break
+                if busy:
+                    busy_count += 1
+            available = member_count - busy_count
+            slots.append({"start": cursor.isoformat().replace("+00:00", "Z"), "end": slot_end.isoformat().replace("+00:00", "Z"), "available": available})
+            cursor = slot_end
+        all_free_blocks = []
+        curr_start = None
+        last_end = None
+        for s in slots:
+            if s["available"] == member_count:
+                if curr_start is None:
+                    curr_start = s["start"]
+                last_end = s["end"]
+            else:
+                if curr_start is not None:
+                    all_free_blocks.append({"start": curr_start, "end": last_end})
+                    curr_start = None
+        if curr_start is not None:
+            all_free_blocks.append({"start": curr_start, "end": last_end})
+        return Response({"stepMinutes": step, "memberCount": member_count, "slots": slots, "allFreeBlocks": all_free_blocks})

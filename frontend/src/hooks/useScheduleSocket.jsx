@@ -2,44 +2,44 @@ import { useEffect, useRef } from 'react';
 
 export function useScheduleSocket(scheduleId, onEventReceived, accessToken, isAuthLoaded) {
   const socketRef = useRef(null);
+  const cbRef = useRef(onEventReceived);
+
+  useEffect(() => {
+    cbRef.current = onEventReceived;
+  }, [onEventReceived]);
 
   useEffect(() => {
     if (!scheduleId || !accessToken || !isAuthLoaded) return;
 
-    const socket = new WebSocket(`ws://localhost:8080/ws/schedules/${scheduleId}/?token=${accessToken}`);
-    socketRef.current = socket;
+    const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const host = window.location.host;
+    const url = `${scheme}://${host}/ws/schedules/${scheduleId}/?token=${encodeURIComponent(accessToken)}`;
 
-    socket.onopen = () => {
-      console.log("✅ WebSocket connected.");
-    };
+    const ws = new WebSocket(url);
+    socketRef.current = ws;
 
-    socket.onmessage = (event) => {
+    ws.onopen = () => console.log('[ws][schedule] open', scheduleId);
+    ws.onmessage = (e) => {
       try {
-        const data = JSON.parse(event.data);
-        if (data.event) {
-          onEventReceived(data.event);
-        }
+        const data = JSON.parse(e.data);
+        const evt = data?.event ?? data;
+        if (evt && cbRef.current) cbRef.current(evt);
       } catch (err) {
-        console.error("❌ WebSocket JSON error:", err);
+        console.error('[ws][schedule] parse error', err);
       }
     };
-
-    socket.onerror = (error) => {
-      console.error("❌ WebSocket error:", error);
-    };
-
-    socket.onclose = (e) => {
-      console.log(`🔌 WebSocket closed: ${e.code}`);
-    };
+    ws.onerror = (e) => console.error('[ws][schedule] error', e);
+    ws.onclose = (e) => console.log('[ws][schedule] close', e.code, e.reason || '');
 
     return () => {
-      socket.close();
+      try { ws.close(); } catch {}
     };
-  }, [scheduleId, onEventReceived, accessToken, isAuthLoaded]); // dependencies
+  }, [scheduleId, accessToken, isAuthLoaded]);
 
-  const sendMessage = (event) => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify({ event }));
+  const sendMessage = (eventObj) => {
+    const s = socketRef.current;
+    if (s && s.readyState === WebSocket.OPEN) {
+      s.send(JSON.stringify({ event: eventObj }));
     }
   };
 

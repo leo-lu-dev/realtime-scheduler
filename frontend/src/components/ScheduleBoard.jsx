@@ -1,106 +1,162 @@
-import { useEffect, useState, useCallback } from 'react';
-import api from '../api';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import MyCalendar from './Calendar';
-import { useScheduleSocket } from '../hooks/useScheduleSocket';
-import { useAuth } from '../auth/AuthContext';
-import { usePopup } from '../popup/PopupContext';
+import api from '../api';
+import { useGroupAvailability } from '../hooks/useGroupAvailability';
 
-export default function ScheduleBoard({ scheduleId, showCreateButton = true }) {
+function weekRangeSunday(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const start = new Date(d);
+  start.setDate(d.getDate() - day);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(start.getDate() + 7);
+  return { start, end };
+}
+
+export default function ScheduleBoard({
+  scheduleId,
+  showCreateButton,
+  groupId,
+  highlightMinAvailable,
+  stepMinutes = 30,
+  onRequestCreate,
+  onRequestEdit,
+  events: eventsProp,
+  refreshAvailability,
+}) {
+  const [date, setDate] = useState(() => new Date());
+  const [view] = useState('week');
+  const [range, setRange] = useState(() => weekRangeSunday(new Date()));
   const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const { accessToken, isAuthLoaded } = useAuth();
-  const { openPopup } = usePopup();
-
-  const onSocketEvent = useCallback((newEvent) => {
-    setEvents(prev => {
-      if (prev.some(evt => evt.id === newEvent.id)) return prev;
-      return [
-        ...prev,
-        {
-          ...newEvent,
-          start: new Date(newEvent.start),
-          end: new Date(newEvent.end),
-        }
-      ];
-    });
-  }, []);
-
-  const { sendMessage } = useScheduleSocket(scheduleId, onSocketEvent, accessToken, isAuthLoaded);
+  const [loadingEvents, setLoadingEvents] = useState(false);
 
   useEffect(() => {
-    async function load() {
+    setRange(weekRangeSunday(date));
+  }, [date]);
+
+  useEffect(() => {
+    if (Array.isArray(eventsProp)) {
+      setEvents(
+        eventsProp.map((evt) => ({
+          ...evt,
+          start: new Date(evt.start),
+          end: new Date(evt.end),
+        }))
+      );
+      return;
+    }
+    async function fetchEvents() {
       if (!scheduleId) {
         setEvents([]);
         return;
       }
-      setLoading(true);
+      setLoadingEvents(true);
       try {
         const res = await api.get(`/api/schedules/${scheduleId}/events/`);
-        const formatted = res.data.map(evt => ({
+        const formatted = res.data.map((evt) => ({
           ...evt,
           start: new Date(evt.start),
           end: new Date(evt.end),
           title: evt.title || 'Event',
         }));
         setEvents(formatted);
-      } catch (err) {
-        console.error('Failed to load events:', err);
+      } catch {
         setEvents([]);
       } finally {
-        setLoading(false);
+        setLoadingEvents(false);
       }
     }
-    load();
-  }, [scheduleId]);
+    fetchEvents();
+  }, [scheduleId, eventsProp]);
 
-  const handleSuccess = (eventData, action) => {
-    if (action === 'create') {
-      setEvents(prev => [...prev, {
-        ...eventData,
-        start: new Date(eventData.start),
-        end: new Date(eventData.end)
-      }]);
-      sendMessage(eventData);
-    } else if (action === 'edit') {
-      setEvents(prev => prev.map(evt =>
-        evt.id === eventData.id
-          ? { ...eventData, start: new Date(eventData.start), end: new Date(eventData.end) }
-          : evt
-      ));
-    } else if (action === 'delete') {
-      setEvents(prev => prev.filter(evt => evt.id !== eventData.id));
+  const handleRangeChange = useCallback((r) => {
+    if (Array.isArray(r) && r.length) {
+      const start = new Date(r[0]);
+      const end = new Date(r[r.length - 1]);
+      end.setDate(end.getDate() + 1);
+      end.setHours(0, 0, 0, 0);
+      setRange({ start, end });
+      setDate(start);
+    } else if (r && r.start && r.end) {
+      setRange({ start: new Date(r.start), end: new Date(r.end) });
+      setDate(new Date(r.start));
     }
-  };
+  }, []);
 
-  const handleCreate = () => {
-    if (!scheduleId) return;
-    openPopup('create_event', {
-      route: `/api/schedules/${scheduleId}/events/`,
-      onSuccess: handleSuccess
-    });
-  };
+  const { data: availability, refresh } = useGroupAvailability(
+    groupId,
+    range.start,
+    range.end,
+    stepMinutes
+  );
 
-  const handleEdit = (event) => {
-    if (!scheduleId) return;
-    openPopup('edit_event', {
-      route: `/api/schedules/${scheduleId}/events/${event.id}/`,
-      data: event,
-      onSuccess: handleSuccess
-    });
-  };
+  useEffect(() => {
+    if (refreshAvailability == null) return;
+    console.log('[avail][trigger] refreshAvailability=', refreshAvailability);
+    refresh();
+  }, [refreshAvailability, refresh]);
 
-  if (!scheduleId) return <p>Select a schedule to view its calendar.</p>;
-  if (loading) return <p>Loading events…</p>;
+  const slotPropGetter = useCallback(
+    (dateCell) => {
+      if (!availability?.slots?.length || !highlightMinAvailable || !availability.memberCount) return {};
+      const s = availability.slots.find(({ start, end }) => {
+        const a = new Date(start);
+        const b = new Date(end);
+        return dateCell >= a && dateCell < b;
+      });
+      if (!s) return {};
+      if (s.available >= highlightMinAvailable) {
+        return { style: { backgroundColor: 'rgba(0, 200, 0, 0.25)' } };
+      }
+      return {};
+    },
+    [availability, highlightMinAvailable]
+  );
+
+  const legend = useMemo(() => {
+    if (!availability?.memberCount) return null;
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+        <div style={{ width: 14, height: 14, background: 'rgba(0,200,0,0.25)', borderRadius: 2 }} />
+        <span>
+          Highlighted = at least {highlightMinAvailable}/{availability.memberCount} members free
+        </span>
+      </div>
+    );
+  }, [availability, highlightMinAvailable]);
+
+  const handleSelectEvent = useCallback(
+    (evt) => {
+      if (onRequestEdit) onRequestEdit(evt);
+    },
+    [onRequestEdit]
+  );
 
   return (
-    <>
-      {showCreateButton && (
-        <div style={{ marginBottom: '1rem' }}>
-          <button className="link" onClick={handleCreate}>Create</button>
+    <div>
+      {legend}
+      {showCreateButton && onRequestCreate && (
+        <div style={{ marginBottom: 8 }}>
+          <button onClick={onRequestCreate}>Create</button>
         </div>
       )}
-      <MyCalendar events={events} onSelectEvent={handleEdit} />
-    </>
+      {loadingEvents ? (
+        <p>Loading events…</p>
+      ) : (
+        <MyCalendar
+          events={events}
+          onSelectEvent={handleSelectEvent}
+          onRangeChange={handleRangeChange}
+          defaultView={view}
+          date={date}
+          onNavigate={setDate}
+          slotPropGetter={slotPropGetter}
+          step={stepMinutes}
+          timeslots={1}
+          repaintNonce={refreshAvailability}
+        />
+      )}
+    </div>
   );
 }

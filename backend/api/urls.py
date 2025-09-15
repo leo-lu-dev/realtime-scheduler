@@ -12,6 +12,7 @@ from .views import (
     MembershipListCreateView,
     MembershipUpdateView,
     MembershipDeleteView,
+    GroupAvailabilityView,
 )
 
 urlpatterns = [
@@ -31,6 +32,8 @@ urlpatterns = [
 
     path('schedules/<uuid:schedule_id>/events/', EventListCreateView.as_view(), name='event-list-create'),
     path('schedules/<uuid:schedule_id>/events/<uuid:event_id>/', EventDetailView.as_view(), name='event-detail'),
+
+    path('groups/<uuid:group_id>/availability/', GroupAvailabilityView.as_view(), name='group-availability'),
 
     path('user/', CurrentUserView.as_view(), name='current-user'),
 ]

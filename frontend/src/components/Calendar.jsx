@@ -1,34 +1,40 @@
-import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
-import format from 'date-fns/format'
-import parse from 'date-fns/parse'
-import startOfWeek from 'date-fns/startOfWeek'
-import getDay from 'date-fns/getDay'
-import enUS from 'date-fns/locale/en-US'
-import 'react-big-calendar/lib/css/react-big-calendar.css'
+// MyCalendar.jsx
+import { Calendar, Views, momentLocalizer } from 'react-big-calendar';
+import moment from 'moment';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
 
-const locales = {
-  'en-US': enUS,
+const localizer = momentLocalizer(moment);
+
+export default function MyCalendar({
+  events,
+  onSelectEvent,
+  onRangeChange,
+  defaultView = 'week',
+  date,
+  onNavigate,
+  slotPropGetter,
+  step = 30,
+  timeslots = 1,
+  repaintNonce = 0,
+}) {
+  const dayPropGetter = () => ({
+    'data-repaint': repaintNonce,
+  });
+
+  return (
+    <Calendar
+      localizer={localizer}
+      events={events}
+      defaultView={defaultView}
+      date={date}
+      onNavigate={onNavigate}
+      onRangeChange={onRangeChange}
+      onSelectEvent={onSelectEvent}
+      slotPropGetter={slotPropGetter}
+      dayPropGetter={dayPropGetter}
+      step={step}
+      timeslots={timeslots}
+      popup
+    />
+  );
 }
-
-const localizer = dateFnsLocalizer({
-    format,
-    parse,
-    startOfWeek,
-    getDay,
-    locales,
-})
-
-function MyCalendar({ events, onSelectEvent }) {
-    return (
-        <Calendar
-            localizer={localizer}
-            events={events}
-            startAccessor="start"
-            endAccessor="end"
-            onSelectEvent={onSelectEvent}
-            style={{ height: 800 }}
-        />
-    )
-}
-
-export default MyCalendar
