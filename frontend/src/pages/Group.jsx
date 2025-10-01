@@ -55,6 +55,10 @@ export default function Group() {
   const scheduleEventsCache = useRef(new Map());
   const dropdownRef = useRef(null);
 
+  const deletedIdsRef = useRef(new Set());
+  const deleteTimersRef = useRef(new Map());
+  const TOMBSTONE_MS = 10000;
+
   useEffect(() => { tokenRef.current = accessToken; }, [accessToken]);
 
   useEffect(() => {
@@ -159,6 +163,7 @@ export default function Group() {
 
   const upsertEvent = useCallback((incoming) => {
     if (!incoming) return;
+    if (incoming.id && deletedIdsRef.current.has(incoming.id)) return;
     setEvents(prev => {
       const normalized = {
         ...incoming,
@@ -180,13 +185,34 @@ export default function Group() {
 
   const onScheduleSocketEvent = useCallback((evt) => {
     if (!evt) return;
+
+    if (evt.type === 'event_changed') {
+      if (activeScheduleId) {
+        loadEvents(activeScheduleId);
+      }
+      setAvailabilityNonce(n => n + 1);
+      return;
+    }
+
     if (evt.type === 'deleted' && evt.id) {
       removeEvent(evt.id);
-    } else {
-      upsertEvent(evt);
+      deletedIdsRef.current.add(evt.id);
+      const old = deleteTimersRef.current.get(evt.id);
+      if (old) clearTimeout(old);
+      const t = setTimeout(() => {
+        deletedIdsRef.current.delete(evt.id);
+        deleteTimersRef.current.delete(evt.id);
+      }, TOMBSTONE_MS);
+      deleteTimersRef.current.set(evt.id, t);
+      setAvailabilityNonce(n => n + 1);
+      return;
     }
+
+    if (evt.id && deletedIdsRef.current.has(evt.id)) return;
+
+    upsertEvent(evt);
     setAvailabilityNonce(n => n + 1);
-  }, [removeEvent, upsertEvent]);
+  }, [activeScheduleId, loadEvents, removeEvent, upsertEvent]);
 
   const { sendMessage } = useScheduleSocket(
     activeScheduleId,
@@ -228,16 +254,16 @@ export default function Group() {
     }
   };
 
+  const onRangeChangeExternal = useCallback((info) => {
+    setRangeInfo(info);
+  }, []);
+
   const handleAvailabilityMeta = useCallback(({ activeCount, totalMembers, missingCount }) => {
     setActiveCount(activeCount || 0);
     setTotalMembers(totalMembers || 0);
     setMissingCount(missingCount || 0);
     const basis = Math.max(1, activeCount || 1);
     setMinRequired(m => Math.min(Math.max(1, m || 1), basis));
-  }, []);
-
-  const onRangeChangeExternal = useCallback((info) => {
-    setRangeInfo(info);
   }, []);
 
   const selectedPlusMeMin = useMemo(() => 1 + selectedMemberIds.length, [selectedMemberIds.length]);
@@ -405,7 +431,7 @@ export default function Group() {
                     type="checkbox"
                     checked={selectedSet.has(m.membershipId)}
                     disabled={m.disabled}
-                    onChange={(e) => {
+                    onChange={() => {
                       const idv = m.membershipId;
                       setSelectedMemberIds(prev => {
                         const s = new Set(prev);
@@ -510,9 +536,21 @@ export default function Group() {
               route: `/api/schedules/${activeScheduleId}/events/${event.id}/`,
               data: dataForForm,
               onSuccess: (eventData, action) => {
-                if (action === 'delete') removeEvent(event.id);
-                else upsertEvent(eventData);
-                try { sendMessage(eventData); } catch {}
+                if (action === 'delete') {
+                  removeEvent(event.id);
+                  deletedIdsRef.current.add(event.id);
+                  const old = deleteTimersRef.current.get(event.id);
+                  if (old) clearTimeout(old);
+                  const t = setTimeout(() => {
+                    deletedIdsRef.current.delete(event.id);
+                    deleteTimersRef.current.delete(event.id);
+                  }, TOMBSTONE_MS);
+                  deleteTimersRef.current.set(event.id, t);
+                  try { sendMessage({ type: 'deleted', id: event.id }); } catch {}
+                } else {
+                  upsertEvent(eventData);
+                  try { sendMessage(eventData); } catch {}
+                }
                 setAvailabilityNonce(n => n + 1);
               }
             });
