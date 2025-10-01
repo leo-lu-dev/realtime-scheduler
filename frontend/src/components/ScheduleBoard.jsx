@@ -20,10 +20,14 @@ export default function ScheduleBoard({
   groupId,
   highlightMinAvailable,
   stepMinutes = 30,
+  onAvailabilityMeta,
   onRequestCreate,
   onRequestEdit,
   events: eventsProp,
   refreshAvailability,
+  overlayFreeSet,
+  onRangeChangeExternal,
+  showLegend = true,
 }) {
   const [date, setDate] = useState(() => new Date());
   const [view] = useState('week');
@@ -70,36 +74,57 @@ export default function ScheduleBoard({
     fetchEvents();
   }, [scheduleId, eventsProp]);
 
-  const handleRangeChange = useCallback((r) => {
+  const handleRangeChange = useCallback((r, v) => {
     if (Array.isArray(r) && r.length) {
       const start = new Date(r[0]);
       const end = new Date(r[r.length - 1]);
       end.setDate(end.getDate() + 1);
       end.setHours(0, 0, 0, 0);
       setRange({ start, end });
-      setDate(start);
-    } else if (r && r.start && r.end) {
-      setRange({ start: new Date(r.start), end: new Date(r.end) });
-      setDate(new Date(r.start));
+      onRangeChangeExternal?.({ start, end, stepMinutes });
+      return;
     }
-  }, []);
+    if (r && r.start && r.end) {
+      const next = { start: new Date(r.start), end: new Date(r.end) };
+      setRange(next);
+      onRangeChangeExternal?.({ ...next, stepMinutes });
+    }
+  }, [onRangeChangeExternal, stepMinutes]);
 
   const { data: availability, refresh } = useGroupAvailability(
     groupId,
     range.start,
     range.end,
-    stepMinutes
+    stepMinutes,
+    { mode: 'active_only', minPeople: 0 }
   );
 
   useEffect(() => {
     if (refreshAvailability == null) return;
-    console.log('[avail][trigger] refreshAvailability=', refreshAvailability);
     refresh();
   }, [refreshAvailability, refresh]);
 
+  useEffect(() => {
+    if (!availability) return;
+    onAvailabilityMeta?.({
+      activeCount: availability.activeCount || 0,
+      totalMembers: availability.totalMembers || 0,
+      missingCount: availability.missingCount || 0,
+    });
+  }, [availability, onAvailabilityMeta]);
+
+  const activeCount = availability?.activeCount || 0;
+
   const slotPropGetter = useCallback(
     (dateCell) => {
-      if (!availability?.slots?.length || !highlightMinAvailable || !availability.memberCount) return {};
+      if (overlayFreeSet && overlayFreeSet.size) {
+        const key = new Date(dateCell).getTime();
+        if (overlayFreeSet.has(key)) {
+          return { className: 'slot-available' };
+        }
+        return {};
+      }
+      if (!availability?.slots?.length || !highlightMinAvailable || !activeCount) return {};
       const s = availability.slots.find(({ start, end }) => {
         const a = new Date(start);
         const b = new Date(end);
@@ -107,24 +132,24 @@ export default function ScheduleBoard({
       });
       if (!s) return {};
       if (s.available >= highlightMinAvailable) {
-        return { style: { backgroundColor: 'rgba(0, 200, 0, 0.25)' } };
+        return { className: 'slot-available' };
       }
       return {};
     },
-    [availability, highlightMinAvailable]
+    [overlayFreeSet, availability, highlightMinAvailable, activeCount]
   );
 
   const legend = useMemo(() => {
-    if (!availability?.memberCount) return null;
+    if (!showLegend) return null;
+    if (!availability) return null;
+    if (!activeCount) return null;
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
         <div style={{ width: 14, height: 14, background: 'rgba(0,200,0,0.25)', borderRadius: 2 }} />
-        <span>
-          Highlighted = at least {highlightMinAvailable}/{availability.memberCount} members free
-        </span>
+        <span>Highlighted = free based on current filter</span>
       </div>
     );
-  }, [availability, highlightMinAvailable]);
+  }, [availability, activeCount, showLegend]);
 
   const handleSelectEvent = useCallback(
     (evt) => {
@@ -148,9 +173,8 @@ export default function ScheduleBoard({
           events={events}
           onSelectEvent={handleSelectEvent}
           onRangeChange={handleRangeChange}
-          defaultView={view}
           date={date}
-          onNavigate={setDate}
+          onNavigate={(d) => setDate(new Date(d))}
           slotPropGetter={slotPropGetter}
           step={stepMinutes}
           timeslots={1}

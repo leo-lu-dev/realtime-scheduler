@@ -5,6 +5,7 @@ import PopupRenderer from './popup/PopupRenderer';
 import { AuthProvider, useAuth } from './auth/AuthContext';
 import ProtectedRoute from './auth/ProtectedRoutes';
 import './styles/index.css';
+import './styles/rbcOverrides.css'
 import Home from './pages/Home';
 import Error from './pages/Error';
 import ScheduleList from './pages/ScheduleList';

@@ -1,35 +1,34 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '../api';
 
-export function useGroupAvailability(groupId, rangeStart, rangeEnd, stepMinutes = 30) {
-  const [data, setData] = useState({ slots: [], memberCount: 0, stepMinutes });
+export function useGroupAvailability(groupId, rangeStart, rangeEnd, stepMinutes = 30, { mode = 'active_only', minPeople = 0 } = {}) {
+  const [data, setData] = useState({ slots: [], activeCount: 0, totalMembers: 0, missingCount: 0, stepMinutes, mode, minPeople });
   const [loading, setLoading] = useState(false);
-  const argsRef = useRef({ groupId, rangeStart, rangeEnd, stepMinutes });
+  const argsRef = useRef({ groupId, rangeStart, rangeEnd, stepMinutes, mode, minPeople });
 
   useEffect(() => {
-    argsRef.current = { groupId, rangeStart, rangeEnd, stepMinutes };
-  }, [groupId, rangeStart, rangeEnd, stepMinutes]);
+    argsRef.current = { groupId, rangeStart, rangeEnd, stepMinutes, mode, minPeople };
+  }, [groupId, rangeStart, rangeEnd, stepMinutes, mode, minPeople]);
 
   const fetchNow = useCallback(async () => {
-    const { groupId, rangeStart, rangeEnd, stepMinutes } = argsRef.current;
+    const { groupId, rangeStart, rangeEnd, stepMinutes, mode, minPeople } = argsRef.current;
     if (!groupId || !rangeStart || !rangeEnd) return;
     const params = new URLSearchParams({
       start: rangeStart.toISOString(),
       end: rangeEnd.toISOString(),
       step: String(stepMinutes),
+      mode,
+      min_people: String(minPeople),
       _: String(Date.now()),
     });
-    console.log('[avail][fetch] GET', `/api/groups/${groupId}/availability/?${params}`);
     setLoading(true);
     try {
       const res = await api.get(`/api/groups/${groupId}/availability/?${params.toString()}`, {
         headers: { 'Cache-Control': 'no-cache' },
       });
-      console.log('[avail][ok]', { memberCount: res.data?.memberCount, slots: res.data?.slots?.length });
       setData(res.data);
-    } catch (e) {
-      console.warn('[avail][err]', e?.message || e);
-      setData({ slots: [], memberCount: 0, stepMinutes });
+    } catch {
+      setData({ slots: [], activeCount: 0, totalMembers: 0, missingCount: 0, stepMinutes, mode, minPeople });
     } finally {
       setLoading(false);
     }
@@ -37,7 +36,7 @@ export function useGroupAvailability(groupId, rangeStart, rangeEnd, stepMinutes 
 
   useEffect(() => {
     fetchNow();
-  }, [groupId, rangeStart?.toISOString(), rangeEnd?.toISOString(), stepMinutes, fetchNow]);
+  }, [groupId, rangeStart?.toISOString(), rangeEnd?.toISOString(), stepMinutes, mode, minPeople, fetchNow]);
 
   return { data, loading, refresh: fetchNow };
 }

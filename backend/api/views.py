@@ -199,6 +199,9 @@ class GroupAvailabilityView(APIView):
         start_str = request.query_params.get('start')
         end_str = request.query_params.get('end')
         step = int(request.query_params.get('step', '30'))
+        mode = request.query_params.get('mode', 'active_only')
+        min_people = int(request.query_params.get('min_people', '0'))
+
         if not start_str or not end_str:
             raise ValidationError("start and end are required ISO datetimes")
         start = parse_datetime(start_str)
@@ -211,18 +214,46 @@ class GroupAvailabilityView(APIView):
             end = timezone.make_aware(end, dt_timezone.utc)
         if step <= 0 or step > 240:
             raise ValidationError("step must be 1..240 minutes")
-        group = Group.objects.filter(Q(id=group_id) & (Q(admin=request.user) | Q(memberships__user=request.user))).distinct().first()
+
+        group = Group.objects.filter(
+            Q(id=group_id) & (Q(admin=request.user) | Q(memberships__user=request.user))
+        ).distinct().first()
         if not group:
             raise PermissionDenied("Not allowed")
-        memberships = Membership.objects.filter(group=group, active_schedule__isnull=False).select_related('active_schedule', 'user')
-        member_count = memberships.count()
-        if member_count == 0:
-            return Response({"stepMinutes": step, "memberCount": 0, "slots": [], "allFreeBlocks": []})
-        schedule_ids = [m.active_schedule_id for m in memberships]
-        events = Event.objects.filter(schedule_id__in=schedule_ids, end__gt=start, start__lt=end).values('schedule_id', 'start', 'end')
+
+        all_members = Membership.objects.filter(group=group).select_related('user', 'active_schedule')
+        actives = all_members.filter(active_schedule__isnull=False)
+        missing = all_members.filter(active_schedule__isnull=True)
+
+        total_members = all_members.count()
+        active_count = actives.count()
+        missing_count = total_members - active_count
+
+        if active_count == 0:
+            return Response({
+                "stepMinutes": step,
+                "mode": mode,
+                "minPeople": min_people,
+                "activeCount": 0,
+                "totalMembers": total_members,
+                "missingCount": missing_count,
+                "memberCount": 0,
+                "activeMemberIds": [],
+                "missingMemberIds": list(missing.values_list('id', flat=True)),
+                "slots": [],
+                "allFreeBlocks": []
+            })
+
+        schedule_ids = list(actives.values_list('active_schedule_id', flat=True))
+        events = Event.objects.filter(
+            schedule_id__in=schedule_ids,
+            end__gt=start, start__lt=end
+        ).values('schedule_id', 'start', 'end')
+
         by_sched = {}
         for e in events:
             by_sched.setdefault(e['schedule_id'], []).append((e['start'], e['end']))
+
         slots = []
         step_delta = timedelta(minutes=step)
         cursor = start
@@ -231,20 +262,25 @@ class GroupAvailabilityView(APIView):
             busy_count = 0
             for sid in schedule_ids:
                 busy = False
-                for s, e in by_sched.get(sid, []):
-                    if not (e <= cursor or s >= slot_end):
+                for s, ev in by_sched.get(sid, []):
+                    if not (ev <= cursor or s >= slot_end):
                         busy = True
                         break
                 if busy:
                     busy_count += 1
-            available = member_count - busy_count
-            slots.append({"start": cursor.isoformat().replace("+00:00", "Z"), "end": slot_end.isoformat().replace("+00:00", "Z"), "available": available})
+            available = active_count - busy_count
+            slots.append({
+                "start": cursor.isoformat().replace("+00:00", "Z"),
+                "end": slot_end.isoformat().replace("+00:00", "Z"),
+                "available": available
+            })
             cursor = slot_end
+
         all_free_blocks = []
         curr_start = None
         last_end = None
         for s in slots:
-            if s["available"] == member_count:
+            if s["available"] == active_count:
                 if curr_start is None:
                     curr_start = s["start"]
                 last_end = s["end"]
@@ -254,4 +290,17 @@ class GroupAvailabilityView(APIView):
                     curr_start = None
         if curr_start is not None:
             all_free_blocks.append({"start": curr_start, "end": last_end})
-        return Response({"stepMinutes": step, "memberCount": member_count, "slots": slots, "allFreeBlocks": all_free_blocks})
+
+        return Response({
+            "stepMinutes": step,
+            "mode": mode,
+            "minPeople": min_people,
+            "activeCount": active_count,
+            "totalMembers": total_members,
+            "missingCount": missing_count,
+            "memberCount": active_count,
+            "activeMemberIds": list(actives.values_list('id', flat=True)),
+            "missingMemberIds": list(missing.values_list('id', flat=True)),
+            "slots": slots,
+            "allFreeBlocks": all_free_blocks
+        })
