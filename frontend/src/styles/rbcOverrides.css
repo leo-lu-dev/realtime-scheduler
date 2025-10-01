@@ -1,0 +1,24 @@
+@import 'react-big-calendar/lib/css/react-big-calendar.css';
+
+.rbc-wrap .rbc-month-row {
+  min-height: 120px;
+}
+
+.rbc-wrap .rbc-time-view {
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.rbc-wrap .rbc-time-content .rbc-day-slot .rbc-time-slot.slot-available {
+  background-color: rgba(0, 200, 0, 0.25);
+}
+
+.rbc-wrap .rbc-time-gutter .rbc-time-slot.slot-available {
+  background: transparent !important;
+}
+
+.rbc-time-content .rbc-day-slot .rbc-time-slot.slot-available {
+  background-color: rgba(0, 200, 0, 0.25);
+}
+.rbc-time-gutter .rbc-time-slot.slot-available {
+  background: transparent !important;
+}

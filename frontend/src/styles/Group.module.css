@@ -1,0 +1,138 @@
+.headerRow {
+  margin: 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.title {
+  margin: 0;
+  display: inline-block;
+}
+.nameInput {
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+.linkBtn {
+  margin-left: 8px;
+  background: transparent;
+  border: none;
+  color: #0b5ed7;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.controlsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.filterBlock {
+  position: relative;
+  min-width: 260px;
+}
+.label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.dropdownTrigger {
+  width: 260px;
+  height: 34px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.caret {
+  margin-left: 8px;
+  font-size: 12px;
+  opacity: 0.7;
+}
+.dropdownPanel {
+  position: absolute;
+  z-index: 10;
+  top: 40px;
+  width: 260px;
+  max-height: 240px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  padding: 6px;
+}
+.option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: 6px;
+}
+.option:hover {
+  background: #f6f7f9;
+}
+.optionText {
+  font-size: 14px;
+}
+.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.chips {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: #eef2ff;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.chipX {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.sliderBlock { min-width: 280px; }
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.slider { width: 220px; }
+.count { font-size: 14px; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+.select {
+  min-width: 220px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  background: #fff;
+  padding: 0 8px;
+}
+
+.calendarWrap { margin-top: 12px; }
