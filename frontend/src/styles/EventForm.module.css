@@ -1,0 +1,35 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  min-width: 420px;
+  min-height: 360px;
+  gap: 10px;
+}
+
+.title {
+  margin: 0;
+}
+
+.input {
+  padding: 8px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+}
+
+.textarea {
+  padding: 8px 10px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  resize: vertical;
+}
+
+.footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  background: white;
+  padding-top: 8px;
+}
